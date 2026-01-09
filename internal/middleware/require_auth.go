@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gauravsulegai/careersync/internal/database"
-	"github.com/Gauravsulegai/careersync/internal/models"
+	"careersync/internal/database"
+	"careersync/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )

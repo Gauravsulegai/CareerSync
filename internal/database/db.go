@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Gauravsulegai/careersync/internal/models"
+	"careersync/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -14,7 +14,7 @@ var DB *gorm.DB
 
 func ConnectDB() {
 	// 1. Connection settings
-	dsn := "host=localhost user=admin password=password123 dbname=careersync port=5432 sslmode=disable TimeZone=Asia/Kolkata"
+	dsn := "host=localhost user=postgres password=password123 dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Kolkata"
 
 	// 2. Open connection
 	var err error
@@ -27,7 +27,10 @@ func ConnectDB() {
 
 	fmt.Println("🚀 Database Connected Successfully!")
 
-	// 4. MIGRATE THE TABLES (Updated to include all new models)
+	// 👇 TEMPORARY: This line deletes the old table so you don't have to do it manually!
+	// DB.Migrator().DropTable(&models.ReferralRequest{}) 
+
+	// 4. MIGRATE THE TABLES
 	fmt.Println("⚙️  Migrating the database...")
 	err = DB.AutoMigrate(
 		&models.User{}, 

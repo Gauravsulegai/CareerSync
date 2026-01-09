@@ -1,46 +1,53 @@
 package main
 
 import (
-	"github.com/Gauravsulegai/careersync/internal/database"
-	"github.com/Gauravsulegai/careersync/internal/handlers"
-	"github.com/Gauravsulegai/careersync/internal/middleware"
+	"log"
+
+	"careersync/internal/database"
+	"careersync/internal/handlers"
+	"careersync/internal/middleware" 
+
 	"github.com/gin-gonic/gin"
 )
+
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
 
 func main() {
 	database.ConnectDB()
 
-	app := gin.Default()
+	r := gin.Default()
+	r.Use(CORSMiddleware())
 
-	// Public Routes
-	app.POST("/signup", handlers.Signup)
-	app.POST("/login", handlers.Login)
-	app.GET("/companies/search", handlers.SearchCompanies) 
+	// --- PUBLIC ROUTES ---
+	r.POST("/signup", handlers.Signup)
+	r.POST("/login", handlers.Login)
+	r.GET("/companies/search", handlers.SearchCompanies)
 
-	// Temporary Verification Route
-	app.GET("/verify/:id", func(c *gin.Context) {
-		id := c.Param("id")
-		database.DB.Model(&database.DB).Table("users").Where("id = ?", id).Update("is_verified", true)
-		c.JSON(200, gin.H{"message": "Account Verified Successfully! You can now log in."})
-	})
-
-	// Protected Routes (Requires Login)
-	protected := app.Group("/")
+	// --- PROTECTED ROUTES ---
+	protected := r.Group("/")
 	protected.Use(middleware.RequireAuth) 
 	{
-		// Company Management
-		protected.PUT("/company/form", handlers.UpdateCompanyForm)
-
-		// Referral Logic
 		protected.POST("/request/referral", handlers.SendReferralRequest)
 		protected.PUT("/request/:id/status", handlers.UpdateRequestStatus)
-
-		// Profile (Testing)
-		protected.GET("/profile", func(c *gin.Context) {
-			user, _ := c.Get("user")
-			c.JSON(200, gin.H{"user": user})
-		})
+		
+		// 👇 NEW ROUTE ADDED HERE
+		protected.GET("/requests", handlers.GetRequests)
 	}
 
-	app.Run(":8080")
+	log.Println("Server running on port 8080")
+	r.Run(":8080")
 }

@@ -1,0 +1,13 @@
+# Binaries & OS Junk
+*.exe
+*.exe~
+.DS_Store
+
+# Dependencies (Too heavy to upload)
+node_modules/
+frontend/node_modules/
+dist/
+build/
+
+# Security
+.env

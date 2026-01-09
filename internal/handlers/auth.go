@@ -1,13 +1,13 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
-	"fmt"
 
-	"github.com/Gauravsulegai/careersync/internal/database"
-	"github.com/Gauravsulegai/careersync/internal/models"
+	"careersync/internal/database"
+	"careersync/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -15,11 +15,11 @@ import (
 
 // SignupInput defines what JSON we expect from the frontend
 type SignupInput struct {
-	Name        string `json:"name" binding:"required"`
-	Email       string `json:"email" binding:"required,email"` // Personal Email
-	Password    string `json:"password" binding:"required"`
-	Role        string `json:"role" binding:"required"` // "student" or "employee"
-	
+	Name     string `json:"name" binding:"required"`
+	Email    string `json:"email" binding:"required,email"` // Personal Email
+	Password string `json:"password" binding:"required"`
+	Role     string `json:"role" binding:"required"` // "student" or "employee"
+
 	// Employee Specific
 	CompanyName string `json:"company_name"` // Text input from search bar
 	WorkEmail   string `json:"work_email"`   // Must match company domain
@@ -78,12 +78,12 @@ func Signup(c *gin.Context) {
 		} else {
 			// COMPANY DOES NOT EXIST -> Create It (First Settler)
 			newCompany := models.Company{
-				Name:       input.CompanyName,
-				Domain:     userDomain, // Lock this domain for future users!
-				FormConfig: []byte(`{"require_resume": true, "require_job_id": true}`), // Default JSON
+				Name:   input.CompanyName,
+				Domain: userDomain, // Lock this domain for future users!
+				// 👇 FIXED: Removed "FormConfig" line here
 			}
 			database.DB.Create(&newCompany)
-			
+
 			// Link User
 			user.CompanyID = &newCompany.ID
 			user.Company = &newCompany

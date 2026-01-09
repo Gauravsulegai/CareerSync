@@ -2,31 +2,37 @@ package models
 
 import (
 	"time"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type ReferralRequest struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	
-	// Relationships
-	StudentID   uint           `json:"student_id"`
-	Student     User           `gorm:"foreignKey:StudentID" json:"student"`
-	
-	EmployeeID  uint           `json:"employee_id"`
-	Employee    User           `gorm:"foreignKey:EmployeeID" json:"employee"`
+	ID        uint `gorm:"primaryKey" json:"id"`
+
+	// Relationships (Pointers)
+	StudentID uint  `json:"student_id"`
+	Student   *User `gorm:"foreignKey:StudentID" json:"student"`
+
+	EmployeeID uint  `json:"employee_id"`
+	Employee   *User `gorm:"foreignKey:EmployeeID" json:"employee"`
 
 	// Status Tracking
-	Status      string         `json:"status" gorm:"default:'Pending'"` 
-	// Values: 'Pending', 'Accepted', 'Rejected', 'Expired', 'AutoCancelled'
+	Status string `json:"status" gorm:"default:'Pending'"`
 
-	// The Data (Answers to the Company Form)
-	FormData    datatypes.JSON `json:"form_data"` 
-	// Example: {"resume": "link...", "job_id": "123", "note": "Hi!"}
+	// --- 🔴 NEW STANDARDIZED FIELDS 🔴 ---
+	CandidateFirstName string `json:"first_name"`
+	CandidateLastName  string `json:"last_name"`
+	CandidateEmail     string `json:"email"`
+	CandidateMobile    string `json:"mobile"`
+	LinkedInURL        string `json:"linkedin_url"`
+	ResumeURL          string `json:"resume_url"`
+	
+	// 👇 NEW FIELD ADDED HERE
+	JobLink            string `json:"job_link"` 
 
-	ExpiresAt   time.Time      `json:"expires_at"` // Calculated as CreatedAt + 5 Days
+	Motivation         string `json:"motivation"` // "Why fit?" (Max 100 words)
 
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
