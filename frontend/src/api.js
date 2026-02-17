@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // 1. Define the Backend Address (The "Post Office")
 const API = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: 'https://careersync-backend-ntwb.onrender.com',
 });
 
 // 2. The Automatic Stamper (Interceptor)
