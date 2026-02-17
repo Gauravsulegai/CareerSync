@@ -2,17 +2,26 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"careersync/internal/database"
 	"careersync/internal/handlers"
-	"careersync/internal/middleware" 
+	"careersync/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		// 👇 FIX: Allow the request to come from ANYWHERE (Dynamic Origin)
+		origin := c.Request.Header.Get("Origin")
+		if origin != "" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			// Fallback for tools like Postman that don't send an Origin
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
@@ -39,15 +48,20 @@ func main() {
 
 	// --- PROTECTED ROUTES ---
 	protected := r.Group("/")
-	protected.Use(middleware.RequireAuth) 
+	protected.Use(middleware.RequireAuth)
 	{
 		protected.POST("/request/referral", handlers.SendReferralRequest)
 		protected.PUT("/request/:id/status", handlers.UpdateRequestStatus)
-		
-		// 👇 NEW ROUTE ADDED HERE
 		protected.GET("/requests", handlers.GetRequests)
+		protected.GET("/my-requests", handlers.GetStudentRequests)
 	}
 
-	log.Println("Server running on port 8080")
-	r.Run(":8080")
+	// Use the port Render gives us, or default to 8080
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	
+	log.Println("Server running on port " + port)
+	r.Run(":" + port)
 }
