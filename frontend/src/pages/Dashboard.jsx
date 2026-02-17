@@ -206,11 +206,16 @@ const ReferralModal = ({ company, user, onClose }) => {
   });
   const [status, setStatus] = useState('IDLE'); 
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('SENDING');
     try {
-      const payload = { employee_id: 2, ...formData }; // NOTE: Update ID if needed
+      // 👇 FIX: We now send the COMPANY ID, not the hardcoded Employee ID
+      const payload = { 
+        company_id: company.id, 
+        ...formData 
+      }; 
+      
       await API.post('/request/referral', payload);
       setStatus('SUCCESS');
       setTimeout(onClose, 2000); 

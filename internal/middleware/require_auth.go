@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -22,7 +23,6 @@ func RequireAuth(c *gin.Context) {
 	}
 
 	// 2. The header usually looks like "Bearer eyJhbGci..."
-	// We need to split it to get just the token part
 	tokenString := strings.Split(authHeader, " ")
 	if len(tokenString) != 2 {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
@@ -35,11 +35,17 @@ func RequireAuth(c *gin.Context) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte("my_secret_key"), nil // MUST match the key used in auth.go
+
+		// 👇 CHANGED: Use env variable or fallback
+		secret := os.Getenv("JWT_SECRET")
+		if secret == "" {
+			secret = "my_secret_key"
+		}
+		
+		return []byte(secret), nil 
 	})
 
 	if err != nil {
-		// This will tell us if the key is wrong or the format is bad
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
@@ -66,10 +72,9 @@ func RequireAuth(c *gin.Context) {
 			return
 		}
 
-		// 5. Attach user to the request (So we can use it later)
+		// 5. Attach user to the request
 		c.Set("user", user)
 		
-		// Move to the next handler
 		c.Next()
 	} else {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})

@@ -11,22 +11,20 @@ import (
 
 // Define the exact input we expect from the frontend
 type ReferralInput struct {
-	EmployeeID uint   `json:"employee_id" binding:"required"`
+	// Asking for CompanyID (Broadcast Mode)
+	CompanyID uint   `json:"company_id" binding:"required"`
 	
-	// The Standard Fields
 	FirstName  string `json:"first_name" binding:"required"`
 	LastName   string `json:"last_name" binding:"required"`
 	Email      string `json:"email" binding:"required,email"`
 	Mobile     string `json:"mobile" binding:"required"`
 	LinkedIn   string `json:"linkedin_url" binding:"required,url"`
 	Resume     string `json:"resume_url" binding:"required,url"`
-	
-	// 👇 NEW INPUT FIELD
 	JobLink    string `json:"job_link" binding:"required"` 
-
 	Motivation string `json:"motivation" binding:"required,max=1000"` 
 }
 
+// 1. SEND REQUEST (Broadcast to Company - No Notifications)
 func SendReferralRequest(c *gin.Context) {
 	userVal, _ := c.Get("user")
 	student := userVal.(models.User)
@@ -42,33 +40,21 @@ func SendReferralRequest(c *gin.Context) {
 		return
 	}
 
-	// 1. SPAM CHECK
-	var existing models.ReferralRequest
-	database.DB.Where("student_id = ? AND employee_id = ? AND status = 'Pending'", student.ID, input.EmployeeID).First(&existing)
-	if existing.ID != 0 {
-		c.JSON(http.StatusConflict, gin.H{"error": "You already have a pending request with this employee."})
-		return
-	}
-
-	// 2. Create the Request
+	// Create the Request (Unassigned: EmployeeID is nil)
 	req := models.ReferralRequest{
 		StudentID:          student.ID,
-		EmployeeID:         input.EmployeeID,
+		CompanyID:          input.CompanyID, 
+		EmployeeID:         nil,             
 		Status:             "Pending",
 		
-		// Map Input to DB Columns
 		CandidateFirstName: input.FirstName,
 		CandidateLastName:  input.LastName,
 		CandidateEmail:     input.Email,
 		CandidateMobile:    input.Mobile,
 		LinkedInURL:        input.LinkedIn,
 		ResumeURL:          input.Resume,
-		
-		// 👇 SAVE THE JOB LINK
 		JobLink:            input.JobLink,
-
 		Motivation:         input.Motivation,
-
 		ExpiresAt:          time.Now().Add(5 * 24 * time.Hour),
 	}
 
@@ -77,18 +63,10 @@ func SendReferralRequest(c *gin.Context) {
 		return
 	}
 
-	// 3. Notify Employee
-	notif := models.Notification{
-		UserID:  input.EmployeeID,
-		Message: "New Referral Request from " + input.FirstName + " " + input.LastName,
-		Type:    "REQUEST_RECEIVED",
-	}
-	database.DB.Create(&notif)
-
-	c.JSON(http.StatusCreated, gin.H{"message": "Request sent successfully!"})
+	c.JSON(http.StatusCreated, gin.H{"message": "Request broadcasted to company network."})
 }
 
-// UpdateRequestStatus - Employee Accepts/Rejects
+// UpdateRequestStatus - Employee Accepts (Claims) or Rejects
 func UpdateRequestStatus(c *gin.Context) {
 	reqID := c.Param("id")
 	userVal, _ := c.Get("user")
@@ -108,25 +86,28 @@ func UpdateRequestStatus(c *gin.Context) {
 		return
 	}
 
-	if req.EmployeeID != employee.ID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "You cannot manage this request"})
-		return
+	// Logic: If I accept it, I CLAIM it.
+	if input.Status == "Accepted" {
+		if req.EmployeeID != nil && *req.EmployeeID != employee.ID {
+			c.JSON(http.StatusConflict, gin.H{"error": "Another employee has already accepted this request!"})
+			return
+		}
+		req.EmployeeID = &employee.ID
+	} else if input.Status == "Rejected" {
+		if req.EmployeeID != nil && *req.EmployeeID != employee.ID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You cannot reject a request claimed by someone else"})
+			return
+		}
+		req.EmployeeID = &employee.ID
 	}
 
 	req.Status = input.Status
 	database.DB.Save(&req)
 
-	notif := models.Notification{
-		UserID:  req.StudentID,
-		Message: "Your referral request was " + input.Status + " by " + employee.Name,
-		Type:    "STATUS_UPDATE",
-	}
-	database.DB.Create(&notif)
-
 	c.JSON(http.StatusOK, gin.H{"message": "Status updated"})
 }
 
-// GetEmployeeRequests
+// GetEmployeeRequests (Shows My Claims + Unclaimed Pool)
 func GetRequests(c *gin.Context) {
 	userVal, _ := c.Get("user")
 	employee := userVal.(models.User)
@@ -137,11 +118,30 @@ func GetRequests(c *gin.Context) {
 	}
 
 	var requests []models.ReferralRequest
-	// Fetch requests that belong to this employee
-	result := database.DB.Preload("Student").Where("employee_id = ?", employee.ID).Find(&requests)
+	
+	// Show requests assigned to ME OR (belong to my company AND are unassigned)
+	result := database.DB.Preload("Student").
+		Where("(employee_id = ?) OR (company_id = ? AND employee_id IS NULL)", employee.ID, employee.CompanyID).
+		Find(&requests)
 
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch requests"})
+		return
+	}
+
+	c.JSON(http.StatusOK, requests)
+}
+
+// GetStudentRequests
+func GetStudentRequests(c *gin.Context) {
+	userVal, _ := c.Get("user")
+	student := userVal.(models.User)
+
+	var requests []models.ReferralRequest
+	result := database.DB.Preload("Company").Preload("Employee").Where("student_id = ?", student.ID).Find(&requests)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch applications"})
 		return
 	}
 

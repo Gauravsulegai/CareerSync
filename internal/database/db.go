@@ -3,40 +3,39 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"careersync/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-// DB is a global variable
 var DB *gorm.DB
 
 func ConnectDB() {
-	// 1. Connection settings
-	dsn := "host=localhost user=postgres password=password123 dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Kolkata"
+	// 1. Get the DB_URL from the environment (Render will provide this!)
+	dsn := os.Getenv("DB_URL")
+	
+	// If no DB_URL is found, default to local (for your laptop)
+	if dsn == "" {
+		dsn = "host=localhost user=postgres password=password123 dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Kolkata"
+	}
 
-	// 2. Open connection
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
-	// 3. Check for errors
 	if err != nil {
 		log.Fatal("Failed to connect to database: ", err)
 	}
 
 	fmt.Println("🚀 Database Connected Successfully!")
 
-	// 👇 TEMPORARY: This line deletes the old table so you don't have to do it manually!
-	// DB.Migrator().DropTable(&models.ReferralRequest{}) 
-
-	// 4. MIGRATE THE TABLES
+	// 2. Migrate Tables
 	fmt.Println("⚙️  Migrating the database...")
 	err = DB.AutoMigrate(
 		&models.User{}, 
 		&models.Company{}, 
 		&models.ReferralRequest{}, 
-		&models.Notification{},
 	)
 	
 	if err != nil {
